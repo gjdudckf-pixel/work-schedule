@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5조 교대근무 일정 캘린더</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #ffffff !important; }
+      .print-shadow-none { box-shadow: none !important; border-color: #d1d5db !important; }
+    }
+  </style>
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="교대근무" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen antialiased">
+  <div class="max-w-5xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
+    <!-- Header -->
+    <header class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 print-shadow-none">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">5조 교대근무 캘린더</h1>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+              일근1·일근2·일근3·당번·비번
+            </span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">
+            기준일 2026-11-19(목) · 내 소속: <strong class="text-slate-800">4팀 (당번)</strong>
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2 no-print">
+                    <button id="btn-install-pwa" type="button"
+            class="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white transition">
+            앱 설치
+          </button>
+          <button id="btn-export-ics" type="button"
+            class="px-3 py-2 rounded-xl text-xs sm:text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+            .ics 내보내기
+          </button>
+          <button id="btn-print" type="button"
+            class="px-3 py-2 rounded-xl text-xs sm:text-sm font-medium bg-slate-900 hover:bg-slate-800 text-white transition">
+            인쇄 / PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Team Switcher -->
+      <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 no-print">
+        <div id="team-tabs" class="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="근무 팀 선택">
+          <!-- Rendered by JS -->
+        </div>
+        <label class="inline-flex items-center gap-2 text-xs sm:text-sm text-slate-600 cursor-pointer select-none">
+          <input id="toggle-all-teams" type="checkbox" class="rounded border-slate-300 text-slate-900 focus:ring-slate-500" />
+          <span>달력에 5개 팀 모두 표시</span>
+        </label>
+      </div>
+    </header>
+
+    <!-- Selected Date Detail & 5-Team Status -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 print-shadow-none">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">선택한 날짜</span>
+            <h2 id="selected-date-title" class="text-lg sm:text-xl font-bold mt-0.5">2026년 11월 19일 (목)</h2>
+          </div>
+          <div id="selected-team-badge" class="px-3.5 py-1.5 rounded-xl text-sm font-bold">
+            4팀 · 당번
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <div class="text-xs font-medium text-slate-500 mb-2">전체 팀 근무 현황</div>
+          <div id="all-teams-status" class="grid grid-cols-5 gap-1.5 sm:gap-2">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Memo for Selected Date -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 flex flex-col justify-between print-shadow-none no-print">
+        <div>
+          <div class="flex items-center justify-between">
+            <label for="date-memo-input" class="text-xs font-semibold text-slate-500">선택 날짜 메모</label>
+            <span id="memo-saved-toast" class="text-xs text-emerald-600 font-medium opacity-0 transition-opacity">저장됨</span>
+          </div>
+          <textarea id="date-memo-input" rows="3" placeholder="연차, 대근, 교대 메모 등을 입력하세요..."
+            class="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white resize-none"></textarea>
+        </div>
+        <div class="mt-2 flex justify-end gap-2">
+          <button id="btn-clear-memo" type="button"
+            class="px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 transition">
+            삭제
+          </button>
+          <button id="btn-save-memo" type="button"
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white transition">
+            메모 저장
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Calendar Card -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-5 print-shadow-none">
+      <!-- Month Controls -->
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <button id="btn-prev-month" type="button" aria-label="이전 달"
+            class="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 transition no-print">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h3 id="calendar-month-label" class="text-lg sm:text-xl font-bold text-slate-900 min-w-[130px] text-center">
+            2026년 11월
+          </h3>
+          <button id="btn-next-month" type="button" aria-label="다음 달"
+            class="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 transition no-print">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+          <button id="btn-today" type="button"
+            class="ml-1 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold border border-slate-200 hover:bg-slate-100 text-slate-700 transition no-print">
+            오늘
+          </button>
+        </div>
+
+        <!-- Monthly Summary Pills -->
+        <div id="monthly-summary" class="flex flex-wrap items-center gap-1.5 text-xs">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Weekday Headers: Sun=Red, Mon-Fri=Black, Sat=Blue -->
+      <div class="grid grid-cols-7 border-b border-slate-200 pb-2 mb-1 text-center text-xs sm:text-sm font-bold">
+        <div style="color: #dc2626;">일</div>
+        <div style="color: #111827;">월</div>
+        <div style="color: #111827;">화</div>
+        <div style="color: #111827;">수</div>
+        <div style="color: #111827;">목</div>
+        <div style="color: #111827;">금</div>
+        <div style="color: #2563eb;">토</div>
+      </div>
+
+      <!-- Calendar Grid -->
+      <div id="calendar-grid" class="grid grid-cols-7 gap-1 sm:gap-1.5">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Legend -->
+      <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-200 border border-slate-400"></span>일근 1·2·3</span>
+          <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>당번</span>
+          <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>비번</span>
+        </div>
+        <span>날짜 색상: <strong style="color:#dc2626;">일요일·공휴일(빨강)</strong> · <strong style="color:#2563eb;">토요일(파랑)</strong> · <strong style="color:#111827;">평일(검정)</strong></span>
+      </div>
+    </section>
+
+    <!-- Quick Weekend/Holiday Off-Duty Finder & Date Jump -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 print-shadow-none no-print space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h3 class="text-sm sm:text-base font-bold text-slate-900">주말·공휴일 비번 빠른 찾기</h3>
+          <p class="text-xs text-slate-500 mt-0.5">선택한 팀의 향후 6개월 내 주말·공휴일 비번 일정을 바로 확인하고 이동할 수 있습니다.</p>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <input id="quick-jump-date" type="date"
+            class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+          <button id="btn-quick-jump" type="button"
+            class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-900 hover:bg-slate-800 text-white transition shrink-0">
+            날짜 이동
+          </button>
+        </div>
+      </div>
+
+      <div id="off-filter-tabs" class="flex flex-wrap items-center gap-1.5">
+        <button type="button" data-off-filter="all" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white transition">전체 (주말+공휴일)</button>
+        <button type="button" data-off-filter="sat" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition">토요일 비번</button>
+        <button type="button" data-off-filter="sunhol" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition">일요일·공휴일 비번</button>
+      </div>
+
+      <div id="quick-off-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+  </div>
+
+  <!-- Toast Banner -->
+  <div id="app-toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs sm:text-sm font-medium shadow-lg opacity-0 pointer-events-none transition-opacity z-50">
+  </div>
+
+  <script>
+    (function () {
+      // 5-day shift cycle: 일근1 -> 일근2 -> 일근3 -> 당번 -> 비번
+      const SHIFTS = [
+        { key: 'day1', label: '일근 1', short: '일근1', badgeClass: 'bg-slate-100 text-slate-800 border border-slate-200', pillClass: 'bg-slate-100 text-slate-700' },
+        { key: 'day2', label: '일근 2', short: '일근2', badgeClass: 'bg-slate-100 text-slate-800 border border-slate-200', pillClass: 'bg-slate-100 text-slate-700' },
+        { key: 'day3', label: '일근 3', short: '일근3', badgeClass: 'bg-slate-100 text-slate-800 border border-slate-200', pillClass: 'bg-slate-100 text-slate-700' },
+        { key: 'duty', label: '당번',   short: '당번',  badgeClass: 'bg-amber-100 text-amber-900 border border-amber-300', pillClass: 'bg-amber-100 text-amber-900 font-bold' },
+        { key: 'off',  label: '비번',   short: '비번',  badgeClass: 'bg-emerald-100 text-emerald-900 border border-emerald-300', pillClass: 'bg-emerald-100 text-emerald-800 font-semibold' }
+      ];
+
+      // Anchor date: 2026-11-19
+      // 1팀: 일근 2번째 (1), 2팀: 일근 1번째 (0), 3팀: 비번 (4), 4팀: 당번 (3), 5팀: 일근 3번째 (2)
+      const ANCHOR_UTC = Date.UTC(2026, 10, 19);
+      const TEAM_ANCHOR = {
+        1: 1,
+        2: 0,
+        3: 4,
+        4: 3,
+        5: 2
+      };
+
+      const WEEKDAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];
+      const STORAGE_KEY_MEMO = 'shift_cal_5teams_memos_v1';
+      const STORAGE_KEY_TEAM = 'shift_cal_5teams_my_team_v1';
+
+      const TODAY = { year: 2026, month: 10, day: 19 }; // 2026-11-19 (default anchor; also syncs to browser date if same or later)
+      const now = new Date();
+      const REAL_TODAY = { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
+
+      let state = {
+        activeTeam: 4,
+        viewYear: REAL_TODAY.year,
+        viewMonth: REAL_TODAY.month,
+        selectedDate: { ...REAL_TODAY },
+        showAllTeams: false,
+        offFilter: 'all',
+        memos: {}
+      };
+
+      function loadStorage() {
+        try {
+          const savedTeam = localStorage.getItem(STORAGE_KEY_TEAM);
+          if (savedTeam && TEAM_ANCHOR[Number(savedTeam)] !== undefined) {
+            state.activeTeam = Number(savedTeam);
+          }
+          const rawMemos = localStorage.getItem(STORAGE_KEY_MEMO);
+          if (rawMemos) {
+            state.memos = JSON.parse(rawMemos) || {};
+          }
+        } catch (e) {
+          // Ignore storage restrictions
+        }
+      }
+
+      function saveMemos() {
+        try {
+          localStorage.setItem(STORAGE_KEY_MEMO, JSON.stringify(state.memos));
+        } catch (e) {}
+      }
+
+      function saveTeam(team) {
+        try {
+          localStorage.setItem(STORAGE_KEY_TEAM, String(team));
+        } catch (e) {}
+      }
+
+      function formatDateKey(y, m, d) {
+        return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      }
+
+      function getShiftForTeam(team, y, m, d) {
+        const targetUtc = Date.UTC(y, m, d);
+        const diffDays = Math.round((targetUtc - ANCHOR_UTC) / 86400000);
+        const idx = ((TEAM_ANCHOR[team] + diffDays) % 5 + 5) % 5;
+        return SHIFTS[idx];
+      }
+
+
+      const KR_HOLIDAYS = {
+        // 2026년 (우주항공청 월력요항 + 노동절·제헌절 공휴일 지정)
+        '2026-01-01': '신정',
+        '2026-02-16': '설날 연휴',
+        '2026-02-17': '설날',
+        '2026-02-18': '설날 연휴',
+        '2026-03-01': '3·1절',
+        '2026-03-02': '대체공휴일(3·1절)',
+        '2026-05-01': '노동절',
+        '2026-05-05': '어린이날',
+        '2026-05-24': '부처님 오신 날',
+        '2026-05-25': '대체공휴일(부처님 오신 날)',
+        '2026-06-03': '지방선거일',
+        '2026-06-06': '현충일',
+        '2026-07-17': '제헌절',
+        '2026-08-15': '광복절',
+        '2026-08-17': '대체공휴일(광복절)',
+        '2026-09-24': '추석 연휴',
+        '2026-09-25': '추석',
+        '2026-09-26': '추석 연휴',
+        '2026-10-03': '개천절',
+        '2026-10-05': '대체공휴일(개천절)',
+        '2026-10-09': '한글날',
+        '2026-12-25': '성탄절',
+        // 2027년 (우주항공청 월력요항)
+        '2027-01-01': '신정',
+        '2027-02-06': '설날 연휴',
+        '2027-02-07': '설날',
+        '2027-02-08': '설날 연휴',
+        '2027-02-09': '대체공휴일(설날)',
+        '2027-03-01': '3·1절',
+        '2027-05-01': '노동절',
+        '2027-05-03': '대체공휴일(노동절)',
+        '2027-05-05': '어린이날',
+        '2027-05-13': '부처님 오신 날',
+        '2027-06-06': '현충일',
+        '2027-07-17': '제헌절',
+        '2027-07-19': '대체공휴일(제헌절)',
+        '2027-08-15': '광복절',
+        '2027-08-16': '대체공휴일(광복절)',
+        '2027-09-14': '추석 연휴',
+        '2027-09-15': '추석',
+        '2027-09-16': '추석 연휴',
+        '2027-10-03': '개천절',
+        '2027-10-04': '대체공휴일(개천절)',
+        '2027-10-09': '한글날',
+        '2027-10-11': '대체공휴일(한글날)',
+        '2027-12-25': '성탄절',
+        '2027-12-27': '대체공휴일(성탄절)'
+      };
+
+      const FIXED_SOLAR_HOLIDAYS = {
+        '01-01': '신정',
+        '03-01': '3·1절',
+        '05-01': '노동절',
+        '05-05': '어린이날',
+        '06-06': '현충일',
+        '07-17': '제헌절',
+        '08-15': '광복절',
+        '10-03': '개천절',
+        '10-09': '한글날',
+        '12-25': '성탄절'
+      };
+
+      function getHolidayName(y, m, d) {
+        const key = formatDateKey(y, m, d);
+        if (KR_HOLIDAYS[key]) return KR_HOLIDAYS[key];
+        const mmdd = String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        return FIXED_SOLAR_HOLIDAYS[mmdd] || null;
+      }
+
+      function getDayColor(dayOfWeek, isHoliday) {
+        if (isHoliday) return '#dc2626'; // 공휴일·대체공휴일 빨간색
+        if (dayOfWeek === 0) return '#dc2626'; // 일요일 빨간색
+        if (dayOfWeek === 6) return '#2563eb'; // 토요일 파란색
+        return '#111827'; // 평일 검은색
+      }
+
+      function showToast(msg) {
+        const el = document.getElementById('app-toast');
+        el.textContent = msg;
+        el.classList.remove('opacity-0');
+        setTimeout(() => el.classList.add('opacity-0'), 2200);
+      }
+
+      function renderTeamTabs() {
+        const container = document.getElementById('team-tabs');
+        container.innerHTML = '';
+        for (let t = 1; t <= 5; t++) {
+          const isActive = state.activeTeam === t;
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.dataset.team = String(t);
+          btn.className = isActive
+            ? 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-900 text-white shadow-sm transition'
+            : 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition';
+          btn.textContent = t === 4 ? '4팀 (나)' : t + '팀';
+          container.appendChild(btn);
+        }
+      }
+
+      function renderSelectedDetail() {
+        const { year, month, day } = state.selectedDate;
+        const dow = new Date(year, month, day).getDay();
+        const holidayName = getHolidayName(year, month, day);
+        const titleEl = document.getElementById('selected-date-title');
+        titleEl.textContent = `${year}년 ${month + 1}월 ${day}일 (${WEEKDAYS_KO[dow]})${holidayName ? ' · ' + holidayName : ''}`;
+        titleEl.style.color = getDayColor(dow, Boolean(holidayName));
+
+        const activeShift = getShiftForTeam(state.activeTeam, year, month, day);
+        const badgeEl = document.getElementById('selected-team-badge');
+        badgeEl.textContent = `${state.activeTeam}팀 · ${activeShift.label}`;
+        badgeEl.className = `px-3.5 py-1.5 rounded-xl text-sm font-bold ${activeShift.badgeClass}`;
+
+        const statusContainer = document.getElementById('all-teams-status');
+        statusContainer.innerHTML = '';
+        for (let t = 1; t <= 5; t++) {
+          const sh = getShiftForTeam(t, year, month, day);
+          const isMe = t === state.activeTeam;
+          const card = document.createElement('div');
+          card.className = isMe
+            ? 'rounded-xl p-2 text-center border-2 border-slate-900 bg-slate-50'
+            : 'rounded-xl p-2 text-center border border-slate-200 bg-white';
+          card.innerHTML = `
+            <div class="text-[11px] font-semibold ${isMe ? 'text-slate-900' : 'text-slate-500'}">${t}팀${t === 4 ? '★' : ''}</div>
+            <div class="mt-1 text-xs py-0.5 px-1 rounded-md ${sh.pillClass}">${sh.short}</div>
+          `;
+          statusContainer.appendChild(card);
+        }
+
+        const key = formatDateKey(year, month, day);
+        const memoInput = document.getElementById('date-memo-input');
+        memoInput.value = state.memos[key] || '';
+      }
+
+      function renderCalendar() {
+        const y = state.viewYear;
+        const m = state.viewMonth;
+        document.getElementById('calendar-month-label').textContent = `${y}년 ${m + 1}월`;
+
+        const firstDow = new Date(y, m, 1).getDay();
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+        const grid = document.getElementById('calendar-grid');
+        grid.innerHTML = '';
+
+        let counts = { day: 0, duty: 0, off: 0 };
+
+        for (let i = 0; i < firstDow; i++) {
+          const empty = document.createElement('div');
+          empty.className = 'min-h-[72px] sm:min-h-[92px] rounded-xl bg-slate-50/50';
+          grid.appendChild(empty);
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dow = new Date(y, m, d).getDay();
+          const dateKey = formatDateKey(y, m, d);
+          const isToday = y === REAL_TODAY.year && m === REAL_TODAY.month && d === REAL_TODAY.day;
+          const isSelected = y === state.selectedDate.year && m === state.selectedDate.month && d === state.selectedDate.day;
+          const hasMemo = Boolean(state.memos[dateKey]);
+
+          const activeShift = getShiftForTeam(state.activeTeam, y, m, d);
+          if (activeShift.key === 'duty') counts.duty++;
+          else if (activeShift.key === 'off') counts.off++;
+          else counts.day++;
+
+          const cell = document.createElement('button');
+          cell.type = 'button';
+          cell.dataset.day = String(d);
+          cell.className = [
+            'min-h-[72px] sm:min-h-[92px] rounded-xl p-1.5 sm:p-2 text-left flex flex-col justify-between transition border relative',
+            isSelected ? 'border-slate-900 bg-slate-50 ring-2 ring-slate-900/15' : 'border-slate-200 bg-white hover:bg-slate-50',
+            isToday && !isSelected ? 'ring-2 ring-amber-400/70' : ''
+          ].join(' ');
+
+          const topRow = document.createElement('div');
+          topRow.className = 'flex items-center justify-between w-full';
+
+          const holidayName = getHolidayName(y, m, d);
+          const dateWrap = document.createElement('div');
+          dateWrap.className = 'flex items-center gap-1 min-w-0';
+
+          const numSpan = document.createElement('span');
+          numSpan.className = 'text-xs sm:text-sm font-bold leading-none shrink-0';
+          numSpan.style.color = getDayColor(dow, Boolean(holidayName));
+          numSpan.textContent = String(d);
+          dateWrap.appendChild(numSpan);
+
+          if (holidayName) {
+            const holSpan = document.createElement('span');
+            holSpan.className = 'text-[9px] sm:text-[10px] font-semibold text-red-600 truncate';
+            holSpan.title = holidayName;
+            holSpan.textContent = holidayName.replace('대체공휴일', '대체');
+            dateWrap.appendChild(holSpan);
+          }
+          topRow.appendChild(dateWrap);
+
+          if (isToday || hasMemo) {
+            const indicators = document.createElement('div');
+            indicators.className = 'flex items-center gap-1';
+            if (hasMemo) {
+              const dot = document.createElement('span');
+              dot.className = 'w-1.5 h-1.5 rounded-full bg-indigo-500';
+              dot.title = '메모 있음';
+              indicators.appendChild(dot);
+            }
+            if (isToday) {
+              const todayBadge = document.createElement('span');
+              todayBadge.className = 'text-[9px] sm:text-[10px] font-bold px-1 py-0.2 rounded bg-slate-900 text-white';
+              todayBadge.textContent = '오늘';
+              indicators.appendChild(todayBadge);
+            }
+            topRow.appendChild(indicators);
+          }
+
+          cell.appendChild(topRow);
+
+          const body = document.createElement('div');
+          body.className = 'mt-1.5 w-full space-y-0.5';
+
+          if (state.showAllTeams) {
+            for (let t = 1; t <= 5; t++) {
+              const sh = getShiftForTeam(t, y, m, d);
+              const isMe = t === state.activeTeam;
+              const line = document.createElement('div');
+              line.className = `text-[9px] sm:text-[10px] leading-tight px-1 rounded truncate ${isMe ? sh.pillClass + ' ring-1 ring-slate-400' : 'text-slate-500'}`;
+              line.textContent = `${t}:${sh.short}`;
+              body.appendChild(line);
+            }
+          } else {
+            const pill = document.createElement('div');
+            pill.className = `text-[11px] sm:text-xs text-center py-1 px-1 rounded-lg ${activeShift.pillClass}`;
+            pill.textContent = activeShift.label;
+            body.appendChild(pill);
+          }
+
+          cell.appendChild(body);
+          grid.appendChild(cell);
+        }
+
+        const summaryEl = document.getElementById('monthly-summary');
+        summaryEl.innerHTML = `
+          <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-medium">일근 ${counts.day}일</span>
+          <span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-semibold">당번 ${counts.duty}일</span>
+          <span class="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-semibold">비번 ${counts.off}일</span>
+        `;
+      }
+
+
+      function renderQuickOffFinder() {
+        const listEl = document.getElementById('quick-off-list');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+
+        const jumpInput = document.getElementById('quick-jump-date');
+        if (jumpInput && !jumpInput.value) {
+          jumpInput.value = formatDateKey(state.selectedDate.year, state.selectedDate.month, state.selectedDate.day);
+        }
+
+        const baseUtc = Date.UTC(REAL_TODAY.year, REAL_TODAY.month, REAL_TODAY.day);
+        const matches = [];
+        for (let offset = 0; offset <= 180; offset++) {
+          const dt = new Date(baseUtc + offset * 86400000);
+          const y = dt.getUTCFullYear();
+          const m = dt.getUTCMonth();
+          const d = dt.getUTCDate();
+          const dow = dt.getUTCDay();
+          const sh = getShiftForTeam(state.activeTeam, y, m, d);
+          if (sh.key !== 'off') continue;
+
+          const hol = getHolidayName(y, m, d);
+          const isSat = dow === 6;
+          const isSunOrHol = dow === 0 || Boolean(hol);
+          if (!isSat && !isSunOrHol) continue;
+
+          if (state.offFilter === 'sat' && !isSat) continue;
+          if (state.offFilter === 'sunhol' && !isSunOrHol) continue;
+
+          matches.push({ y, m, d, dow, hol, offset });
+          if (matches.length >= 12) break;
+        }
+
+        if (matches.length === 0) {
+          listEl.innerHTML = '<div class="col-span-full text-xs text-slate-400 py-2">해당 조건의 비번 일정이 없습니다.</div>';
+          return;
+        }
+
+        matches.forEach((item) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.dataset.jump = formatDateKey(item.y, item.m, item.d);
+          const color = getDayColor(item.dow, Boolean(item.hol));
+          const dday = item.offset === 0 ? '오늘' : `D-${item.offset}`;
+          const holLabel = item.hol ? ` · ${item.hol.replace('대체공휴일', '대체')}` : '';
+          btn.className = 'text-left rounded-xl border border-slate-200 hover:border-slate-400 bg-slate-50 hover:bg-white p-2.5 transition';
+          btn.innerHTML = `
+            <div class="flex items-center justify-between gap-1">
+              <span class="text-xs sm:text-sm font-bold" style="color:${color};">${item.m + 1}/${item.d} (${WEEKDAYS_KO[item.dow]})</span>
+              <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">${dday}</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-1 truncate">${state.activeTeam}팀 비번${holLabel}</div>
+          `;
+          listEl.appendChild(btn);
+        });
+      }
+
+      function renderAll() {
+        renderTeamTabs();
+        renderSelectedDetail();
+        renderCalendar();
+        renderQuickOffFinder();
+      }
+
+      function exportICS() {
+        const y = state.viewYear;
+        const m = state.viewMonth;
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+        const team = state.activeTeam;
+        const lines = [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'PRODID:-//ShiftCalendar//5Teams//KO',
+          'CALSCALE:GREGORIAN'
+        ];
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const sh = getShiftForTeam(team, y, m, d);
+          const dtStart = `${y}${String(m + 1).padStart(2, '0')}${String(d).padStart(2, '0')}`;
+          const nextDate = new Date(Date.UTC(y, m, d + 1));
+          const dtEnd = `${nextDate.getUTCFullYear()}${String(nextDate.getUTCMonth() + 1).padStart(2, '0')}${String(nextDate.getUTCDate()).padStart(2, '0')}`;
+          const key = formatDateKey(y, m, d);
+          const memo = state.memos[key] ? ` (${state.memos[key].replace(/\n/g, ' ')})` : '';
+          lines.push(
+            'BEGIN:VEVENT',
+            `UID:shift-${team}-${dtStart}@local`,
+            `DTSTART;VALUE=DATE:${dtStart}`,
+            `DTEND;VALUE=DATE:${dtEnd}`,
+            `SUMMARY:[${team}팀] ${sh.label}${memo}`,
+            'END:VEVENT'
+          );
+        }
+
+        lines.push('END:VCALENDAR');
+        const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `교대근무_${team}팀_${y}_${String(m + 1).padStart(2, '0')}.ics`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast(`${team}팀 ${m + 1}월 일정(.ics)을 내려받았습니다.`);
+      }
+
+      // Event Listeners
+      document.getElementById('team-tabs').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-team]');
+        if (!btn) return;
+        state.activeTeam = Number(btn.dataset.team);
+        saveTeam(state.activeTeam);
+        renderAll();
+      });
+
+      document.getElementById('toggle-all-teams').addEventListener('change', (e) => {
+        state.showAllTeams = e.target.checked;
+        renderCalendar();
+      });
+
+      document.getElementById('calendar-grid').addEventListener('click', (e) => {
+        const cell = e.target.closest('button[data-day]');
+        if (!cell) return;
+        state.selectedDate = {
+          year: state.viewYear,
+          month: state.viewMonth,
+          day: Number(cell.dataset.day)
+        };
+        renderSelectedDetail();
+        renderCalendar();
+      });
+
+      document.getElementById('btn-prev-month').addEventListener('click', () => {
+        if (state.viewMonth === 0) {
+          state.viewYear--;
+          state.viewMonth = 11;
+        } else {
+          state.viewMonth--;
+        }
+        renderCalendar();
+      });
+
+      document.getElementById('btn-next-month').addEventListener('click', () => {
+        if (state.viewMonth === 11) {
+          state.viewYear++;
+          state.viewMonth = 0;
+        } else {
+          state.viewMonth++;
+        }
+        renderCalendar();
+      });
+
+      document.getElementById('btn-today').addEventListener('click', () => {
+        state.viewYear = REAL_TODAY.year;
+        state.viewMonth = REAL_TODAY.month;
+        state.selectedDate = { ...REAL_TODAY };
+        renderAll();
+      });
+
+      document.getElementById('btn-save-memo').addEventListener('click', () => {
+        const { year, month, day } = state.selectedDate;
+        const key = formatDateKey(year, month, day);
+        const val = document.getElementById('date-memo-input').value.trim();
+        if (val) {
+          state.memos[key] = val;
+        } else {
+          delete state.memos[key];
+        }
+        saveMemos();
+        renderCalendar();
+        const toast = document.getElementById('memo-saved-toast');
+        toast.classList.remove('opacity-0');
+        setTimeout(() => toast.classList.add('opacity-0'), 1500);
+      });
+
+      document.getElementById('btn-clear-memo').addEventListener('click', () => {
+        const { year, month, day } = state.selectedDate;
+        const key = formatDateKey(year, month, day);
+        delete state.memos[key];
+        document.getElementById('date-memo-input').value = '';
+        saveMemos();
+        renderCalendar();
+        showToast('선택한 날짜의 메모를 삭제했습니다.');
+      });
+
+      document.getElementById('btn-export-ics').addEventListener('click', exportICS);
+      document.getElementById('btn-print').addEventListener('click', () => window.print());
+
+
+      document.getElementById('off-filter-tabs').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-off-filter]');
+        if (!btn) return;
+        state.offFilter = btn.dataset.offFilter;
+        document.querySelectorAll('#off-filter-tabs button').forEach((b) => {
+          const active = b.dataset.offFilter === state.offFilter;
+          b.className = active
+            ? 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white transition'
+            : 'px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition';
+        });
+        renderQuickOffFinder();
+      });
+
+      document.getElementById('quick-off-list').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-jump]');
+        if (!btn) return;
+        const [yy, mm, dd] = btn.dataset.jump.split('-').map(Number);
+        state.viewYear = yy;
+        state.viewMonth = mm - 1;
+        state.selectedDate = { year: yy, month: mm - 1, day: dd };
+        renderAll();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      document.getElementById('btn-quick-jump').addEventListener('click', () => {
+        const val = document.getElementById('quick-jump-date').value;
+        if (!val) return;
+        const [yy, mm, dd] = val.split('-').map(Number);
+        state.viewYear = yy;
+        state.viewMonth = mm - 1;
+        state.selectedDate = { year: yy, month: mm - 1, day: dd };
+        renderAll();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      loadStorage();
+      renderAll();
+    })();
+  </script>
+
+  <!-- PWA Install Guide Modal -->
+  <div id="pwa-install-modal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center p-4 z-50 no-print">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-slate-200 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900">홈 화면에 앱 설치하기</h3>
+        <button id="btn-close-install-modal" type="button" class="text-slate-400 hover:text-slate-700 text-lg font-bold px-1">&times;</button>
+      </div>
+      <div class="text-xs sm:text-sm text-slate-600 space-y-2 leading-relaxed">
+        <p><strong class="text-slate-900">안드로이드 (Chrome):</strong> 오른쪽 위 <strong>⋮</strong> 메뉴 &rarr; <strong>홈 화면에 추가</strong> &rarr; <strong>설치</strong></p>
+        <p><strong class="text-slate-900">삼성 인터넷:</strong> 오른쪽 아래 <strong>≡</strong> 메뉴 &rarr; <strong>현재 페이지 추가</strong> &rarr; <strong>홈 화면</strong></p>
+        <p><strong class="text-slate-900">아이폰 (Safari):</strong> 하단 <strong>공유(□↑)</strong> 버튼 &rarr; <strong>홈 화면에 추가</strong></p>
+      </div>
+      <button id="btn-ok-install-modal" type="button"
+        class="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition">
+        확인
+      </button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('./sw.js').catch(function () {});
+        });
+      }
+      var deferredPrompt = null;
+      var installBtn = document.getElementById('btn-install-pwa');
+      var modal = document.getElementById('pwa-install-modal');
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferredPrompt = e;
+      });
+      if (installBtn) {
+        installBtn.addEventListener('click', function () {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function () { deferredPrompt = null; });
+          } else if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+          }
+        });
+      }
+      function closeModal() {
+        if (modal) {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+        }
+      }
+      var closeBtn = document.getElementById('btn-close-install-modal');
+      var okBtn = document.getElementById('btn-ok-install-modal');
+      if (closeBtn) closeBtn.addEventListener('click', closeModal);
+      if (okBtn) okBtn.addEventListener('click', closeModal);
+      if (modal) {
+        modal.addEventListener('click', function (e) {
+          if (e.target === modal) closeModal();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
